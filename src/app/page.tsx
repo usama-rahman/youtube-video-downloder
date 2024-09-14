@@ -16,8 +16,8 @@ export default function Home() {
       await fetch(urlValue)
         .then((res) => res.blob())
         .then((file) => {
-          let tempUrl = URL.createObjectURL(file);
-          let aTag = document.createElement("a");
+          const tempUrl = URL.createObjectURL(file);
+          const aTag = document.createElement("a");
 
           aTag.href = tempUrl;
           aTag.download = "video.mp4";
