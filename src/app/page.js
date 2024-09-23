@@ -2,42 +2,75 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios"; // Add axios for making HTTP requests
 
 export default function Home() {
   const [urlValue, setUrlValue] = useState("");
-  const [downloadStatus, setDownloadStatus] = useState("");
+  const [videoId, setVideoId] = useState("");
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    // Load the YouTube API script
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName("script")[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    window.onYouTubeIframeAPIReady = loadVideo;
+  }, []);
+
+  const loadVideo = () => {
+    if (videoId) {
+      new window.YT.Player("youtube-player", {
+        height: "360",
+        width: "640",
+        videoId: videoId,
+      });
+    }
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setDownloadStatus("Downloading...");
+    const videoId = extractVideoId(urlValue);
+    if (videoId) {
+      setVideoId(videoId);
+      loadVideo();
+      downloadVideo(videoId); // Call download function
+    } else {
+      alert("Invalid YouTube URL");
+    }
+  };
 
+  const extractVideoId = (url) => {
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  const downloadVideo = async (videoId) => {
     try {
-      await fetch(urlValue)
-        .then((res) => res.blob())
-        .then((file) => {
-          let tempUrl = URL.createObjectURL(file);
-          let aTag = document.createElement("a");
-
-          aTag.href = tempUrl;
-          aTag.download = "video.mp4";
-          document.body.appendChild(aTag);
-          aTag.click();
-          window.URL.revokeObjectURL(tempUrl);
-          document.body.removeChild(aTag);
-        });
-
-      setDownloadStatus("Downloaded");
+      const response = await axios.get(`/api/download?videoId=${videoId}`, {
+        responseType: "blob",
+      });
+      console.log(response.data);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${videoId}.mp4`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (error) {
-      console.log(error.message);
-      setDownloadStatus("Error !!");
+      console.error("Error downloading video:", error);
+      alert("Failed to download video");
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <form
-        className="flex flex-col items-center justify-center w-full max-w-md"
+        className="flex flex-col items-center justify-center w-full max-w-md mb-4"
         onSubmit={handleSubmit}
       >
         <Input
@@ -48,10 +81,10 @@ export default function Home() {
           onChange={(e) => setUrlValue(e.target.value)}
         />
         <Button type="submit" className="w-full">
-          Download
+          Load Video
         </Button>
-        {downloadStatus}
       </form>
+      <div id="youtube-player"></div>
     </div>
   );
 }
